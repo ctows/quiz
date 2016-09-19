@@ -4,14 +4,14 @@ import java.awt.event.*;
 import javax.swing.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import java.io.*;
-import java.util.Scanner;
+import java.util.*;
 import java.awt.*;
 
 public class MainMenu extends JFrame implements ActionListener {
 
 	private JPanel contentPane;						// Main Window
 	private String path;							// file path
-	private File file = new File("./quiz.txt");		// file object
+	private File file;								// file object
 	private JPanel center;							// center panel (CENTER)
 	private JPanel bottom;							// bottom panel (BOTTOM)
 	private int enteredQuestions;					// -User supplied- number of questions to use
@@ -28,21 +28,22 @@ public class MainMenu extends JFrame implements ActionListener {
 	private JPanel wordPanel;						// Word panel
 	private JTextField word;						// Field to hold word
 	private JTextField def;							// Field to hold definition
-	private JButton	btnWordAdd;						// Add Word button
+	private JButton	btnAddWord;						// Add Word button
+	private JButton btnDeleteWord;					// Remove word button
 	private JButton btnReturn;						// Return to button panel
-	private FileOutputStream ios;					//
-	private OutputStreamWriter osw;  				//
-    private Writer w;								//
+	private BufferedWriter bw;						// 
+	private StringBuffer sb = new StringBuffer();   // 
+	private boolean create = false;					//
 	
 	// file panel items
 	private JPanel filePanel;						// File panel
 	private JButton btnFilePath;					// File path button
 	private JFileChooser fc = new JFileChooser();	// File chooser object
-	private JTextField txtfilepath;					// file path of quiz
+	private JTextField txtFilePath;					// file path of quiz
 	
 	// quiz panel items --
 	private JPanel quizPanel;						// quiz interface panel
-	private JLabel lblquestion;
+	private JLabel lblQuestion;
 	private JRadioButton radio1;					
 	private JRadioButton radio2;
 	private JRadioButton radio4;
@@ -106,16 +107,19 @@ public class MainMenu extends JFrame implements ActionListener {
 		buttonPanel.setLayout(null);
 		
 		btnStartQuiz = new JButton("Start Quiz");
+		btnStartQuiz.setEnabled(false);
 		btnStartQuiz.setBounds(159, 27, 117, 29);
 		buttonPanel.add(btnStartQuiz);
 		btnStartQuiz.addActionListener(this);
 		
 		btnCreateQuiz = new JButton("Create Quiz");
+		btnCreateQuiz.setEnabled(false);
 		btnCreateQuiz.setBounds(159, 67, 117, 29);
 		buttonPanel.add(btnCreateQuiz);
 		btnCreateQuiz.addActionListener(this);
 		
 		btnModifyQuiz = new JButton("Modify Quiz");
+		btnModifyQuiz.setEnabled(false);
 		btnModifyQuiz.setBounds(159, 107, 117, 29);
 		buttonPanel.add(btnModifyQuiz);
 		btnModifyQuiz.addActionListener(this);
@@ -140,31 +144,37 @@ public class MainMenu extends JFrame implements ActionListener {
 		
 		JLabel lblword = new JLabel("Word: ");
 		lblword.setHorizontalAlignment(SwingConstants.RIGHT);
-		lblword.setBounds(48, 33, 52, 14);
+		lblword.setBounds(58, 33, 52, 14);
 		wordPanel.add(lblword);
 		
 		word = new JTextField();
-		word.setBounds(110, 30, 208, 20);
+		word.setBounds(120, 30, 150, 20);
 		wordPanel.add(word);
 		word.setColumns(18);
 		
 		JLabel lblDefinition = new JLabel("Definition: ");
 		lblDefinition.setHorizontalAlignment(SwingConstants.RIGHT);
-		lblDefinition.setBounds(28, 58, 72, 14);
+		lblDefinition.setBounds(46, 58, 70, 14);
 		wordPanel.add(lblDefinition);
 		
 		def = new JTextField();
-		def.setBounds(110, 61, 208, 64);
+		def.setBounds(120, 61, 257, 64);
 		wordPanel.add(def);
 		def.setColumns(18);
 		
-		btnWordAdd = new JButton("Add word");
-		btnWordAdd.setBounds(110, 136, 101, 31);
-		wordPanel.add(btnWordAdd);
-		btnWordAdd.addActionListener(this);
+		btnAddWord = new JButton("Add word");
+		btnAddWord.setBounds(70, 136, 101, 31);
+		wordPanel.add(btnAddWord);
+		btnAddWord.addActionListener(this);
+		
+
+		btnDeleteWord = new JButton("Strike word");
+		btnDeleteWord.setBounds(181, 136, 101, 31);
+		wordPanel.add(btnDeleteWord);
+		btnDeleteWord.addActionListener(this);
 		
 		btnReturn = new JButton("Return");
-		btnReturn.setBounds(221, 136, 97, 31);
+		btnReturn.setBounds(292, 136, 97, 31);
 		wordPanel.add(btnReturn);
 		btnReturn.addActionListener(this);
 		
@@ -187,10 +197,9 @@ public class MainMenu extends JFrame implements ActionListener {
 		
 			// File path display
 		
-		txtfilepath = new JTextField();
-		txtfilepath.setColumns(25);
-		filePanel.add(txtfilepath);
-		txtfilepath.setText(".\\quiz.txt");
+		txtFilePath = new JTextField();
+		txtFilePath.setColumns(25);
+		filePanel.add(txtFilePath);
 		
 		// Quiz panel (CENTER)
 		
@@ -199,9 +208,9 @@ public class MainMenu extends JFrame implements ActionListener {
 		center.add(quizPanel);
 		quizPanel.setLayout(new GridLayout(6, 1, 0, 0));
 		
-		lblquestion = new JLabel("Question");
-		lblquestion.setHorizontalAlignment(SwingConstants.CENTER);
-		quizPanel.add(lblquestion);
+		lblQuestion = new JLabel("Question");
+		lblQuestion.setHorizontalAlignment(SwingConstants.CENTER);
+		quizPanel.add(lblQuestion);
 		
 		radio1 = new JRadioButton("radio1");
 		quizPanel.add(radio1);
@@ -236,7 +245,7 @@ public class MainMenu extends JFrame implements ActionListener {
 		infoPanel.setVisible(false);
 		bottom.add(infoPanel);
 		
-		infoLabel = new JLabel(txtfilepath.getText() + ":: Question: X/Y");
+		infoLabel = new JLabel(txtFilePath.getText() + ":: Question: X/Y");
 		infoPanel.add(infoLabel);
 		
 		// add panels to center panel
@@ -263,67 +272,61 @@ public class MainMenu extends JFrame implements ActionListener {
 			buttonPanel.setVisible(false);
 			wordPanel.setVisible(true);					// word panel 'opened'
 			btnFilePath.setEnabled(false);
-			if(e.getSource() == btnModifyQuiz) {		// Modify Quiz 
-				if(file.exists() && file.canWrite()) {
-					try {
-						ios = new FileOutputStream(file);
-						osw = new OutputStreamWriter(ios);  
-						w = new BufferedWriter(osw); 
-					} catch (FileNotFoundException fnfe) {
-						System.out.println("modify quiz 404 error");
-					}
-				}
-				//...
-			}
-			else {										// Create new Quiz
+			if(e.getSource() == btnCreateQuiz) {		// Create new Quiz
 				if(file.exists()) {
-					System.out.println("delete");
 					file.delete();
 				}
 				try {
-					System.out.println("create");
 					file.createNewFile();
 				} catch (IOException ioe) {
-					ioe.printStackTrace();
+					System.out.println("File creation error");
 				}
-				System.out.println(file.toString());
-				if(file.exists() && file.canRead() && file.canWrite()) {
-					try {
-						ios = new FileOutputStream(file);
-						osw = new OutputStreamWriter(ios);  
-						w = new BufferedWriter(osw); 
-					} catch (FileNotFoundException fnfe) {
-						System.out.println("create quiz 404 error");
-					}
-				}
-				//...
+				create = true;
 			}
 		}
 		if(e.getSource() == btnFilePath) {					// Select File [works]
-			String[] ft = {"txt"};		// String array of acceptable filetypes
+			String[] ft = {"txt"};			// String array of acceptable file types
 			FileNameExtensionFilter filter = new FileNameExtensionFilter("text document", ft);
 			fc.setFileFilter(filter);
 			int returnVal = fc.showOpenDialog(this);
 			if (returnVal == JFileChooser.APPROVE_OPTION) {
 				file = fc.getSelectedFile();
 				path = file.getAbsolutePath();
-				txtfilepath.setText(path);
+				txtFilePath.setText(path);
+				btnStartQuiz.setEnabled(true);
+				btnModifyQuiz.setEnabled(true);
+				btnCreateQuiz.setEnabled(true);
 			}
 		}
-		if(e.getSource() == btnWordAdd) {					// Add word
+		if(e.getSource() == btnAddWord) {					// Add word
 			System.out.println("Add word " + word.getText() + ", definition " + def.getText());
-			try {
-	            w.append(word.getText() + " :" + def.getText());
-			} catch (IOException wae) {
-				System.out.println("write append error");
+			if(def.getText().equals("")) {
+				System.out.println("definition scrape request");
+				//scrape(word) for definition
+				def.setText("def_scrape");
 			}
+			sb.append(word.getText() + ":" + def.getText() + System.getProperty("line.separator"));
+			
 			//...
 		}
 		if(e.getSource() == btnReturn) {					// Return to main menu [works]
 			try {
-				w.write(w.toString());
-			} catch (IOException ioe) {
-				System.out.println("writer io error");
+				bw = new BufferedWriter(new FileWriter(file));
+				if(create == false) {
+					Scanner s = new Scanner(file);
+					StringBuffer prev = new StringBuffer();
+					while(s.hasNext()) {
+						prev.append(s.next());
+						prev.append(System.getProperty("line.separator"));
+					}
+					s.close();
+					bw.write(prev.toString());				// write previous input to file if not creating new
+				}
+				bw.write(sb.toString());					// write input to file
+				bw.flush();
+				bw.close();
+			} catch (IOException bwioe) {
+				System.out.println("bufferedwriter io error");
 			}
 			wordPanel.setVisible(false);
 			btnFilePath.setEnabled(true);
@@ -367,6 +370,11 @@ public class MainMenu extends JFrame implements ActionListener {
 			}
 			*/
 			btnStartQuiz.setEnabled(true);
+		}
+		if(e.getSource() == btnDeleteWord) {
+			// delete word from objects list
+			// delete word from text file
+			System.out.println("delete " + word.getText());
 		}
 	}
 }
