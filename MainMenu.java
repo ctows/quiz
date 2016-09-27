@@ -4,7 +4,7 @@ import java.awt.event.*;
 import javax.swing.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import java.io.*;
-import java.util.*;
+import java.util.Scanner;
 import java.awt.*;
 
 public class MainMenu extends JFrame implements ActionListener {
@@ -33,6 +33,7 @@ public class MainMenu extends JFrame implements ActionListener {
 	private JButton btnReturn;						// Return to button panel
 	private BufferedWriter bw;						// 
 	private StringBuffer sb = new StringBuffer();   // 
+	private StringBuffer prevBuffer = new StringBuffer();// Read contents of a file for Modify
 	private boolean create = false;					//
 	
 	// file panel items
@@ -128,7 +129,7 @@ public class MainMenu extends JFrame implements ActionListener {
         lblQuestions.setBounds(125, 158, 151, 22);
         buttonPanel.add(lblQuestions);
 		
-		txtQuestions = new JTextField("all");
+		txtQuestions = new JTextField("");
 		txtQuestions.setBounds(254, 154, 30, 30);
 		buttonPanel.add(txtQuestions);
 		txtQuestions.addActionListener(this);
@@ -272,15 +273,7 @@ public class MainMenu extends JFrame implements ActionListener {
 			buttonPanel.setVisible(false);
 			wordPanel.setVisible(true);					// word panel 'opened'
 			btnFilePath.setEnabled(false);
-			if(e.getSource() == btnCreateQuiz) {		// Create new Quiz
-				if(file.exists()) {
-					file.delete();
-				}
-				try {
-					file.createNewFile();
-				} catch (IOException ioe) {
-					System.out.println("File creation error");
-				}
+			if(e.getSource() == btnCreateQuiz) {		// Create button boolean
 				create = true;
 			}
 		}
@@ -293,7 +286,7 @@ public class MainMenu extends JFrame implements ActionListener {
 				file = fc.getSelectedFile();
 				path = file.getAbsolutePath();
 				txtFilePath.setText(path);
-				btnStartQuiz.setEnabled(true);
+				txtQuestions.setText("");
 				btnModifyQuiz.setEnabled(true);
 				btnCreateQuiz.setEnabled(true);
 			}
@@ -309,20 +302,31 @@ public class MainMenu extends JFrame implements ActionListener {
 			
 			//...
 		}
-		if(e.getSource() == btnReturn) {					// Return to main menu [works]
+		if(e.getSource() == btnReturn) {					// Return to main menu and add write buffer to file
 			try {
-				bw = new BufferedWriter(new FileWriter(file));
 				if(create == false) {
-					Scanner s = new Scanner(file);
-					StringBuffer prev = new StringBuffer();
-					while(s.hasNext()) {
-						prev.append(s.next());
-						prev.append(System.getProperty("line.separator"));
-					}
-					s.close();
-					bw.write(prev.toString());				// write previous input to file if not creating new
+					InputStream is = new FileInputStream(file);
+					String previous = convertStreamToString(is);
+					System.out.println(previous);
+					System.out.println("1 append:\n" + previous.toString() + " to bufferwriter");
+					prevBuffer = new StringBuffer(previous.toString());
 				}
-				bw.write(sb.toString());					// write input to file
+				else {
+					if(file.exists()) {
+						System.out.println("Delete");
+						file.delete();
+					}
+					try {
+						System.out.println("Create");
+						file.createNewFile();
+					} catch (IOException ioe) {
+						System.out.println("File creation error");
+					}
+				}
+				bw = new BufferedWriter(new FileWriter(file));
+				System.out.println("2 append:\n" + sb.toString() + " to bufferwriter");
+				bw.append(prevBuffer);
+				bw.append(sb.toString());
 				bw.flush();
 				bw.close();
 			} catch (IOException bwioe) {
@@ -363,18 +367,32 @@ public class MainMenu extends JFrame implements ActionListener {
 				btnStartQuiz.setEnabled(false);
 				return;
 			}
-			/*
+			try {
+				if(file.exists())
+					btnStartQuiz.setEnabled(true);
+			}
+			catch(NullPointerException npe) {
+				return;
+			}
+			return;
+				
+				/*
 			if(enteredQuestions > numQuestions) {		// disable btnStartQuiz if enteredQuestions > numQuestions
 				btnStartQuiz.setEnabled(false);
 				return;
 			}
 			*/
-			btnStartQuiz.setEnabled(true);
 		}
 		if(e.getSource() == btnDeleteWord) {
 			// delete word from objects list
 			// delete word from text file
 			System.out.println("delete " + word.getText());
 		}
+	}
+	
+	static String convertStreamToString(InputStream is) {
+	    @SuppressWarnings("resource")
+		java.util.Scanner s = new java.util.Scanner(is).useDelimiter("\\A");
+	    return s.hasNext() ? s.next() : "";
 	}
 }
