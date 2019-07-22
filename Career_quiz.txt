@@ -1,0 +1,20 @@
+teller:bank
+ski patrol:ski resort
+lifeguard:pool
+professor:university
+lumber yard:lumberjack
+judge:court
+hedge fund manager:yacht
+athlete:gym
+ranger:national park
+president:white house
+hospital:doctor
+road worker:street
+artist:studio
+pilot:sky
+conductor:tracks
+miner:underground
+oil worker:rig
+welder:foundry
+farmer:field
+diver:underwater
